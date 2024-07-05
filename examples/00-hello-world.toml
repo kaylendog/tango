@@ -1,0 +1,14 @@
+#
+# An example config serving a "Hello, World!" HTML file.
+#
+
+[module]
+name = "hello-world"
+description = "A basic hello world module"
+imports = []
+
+[[hosts."hello-world"]]
+port = 80
+endpoints = [
+  { path = "/", file = "hello-world.html" }
+]
