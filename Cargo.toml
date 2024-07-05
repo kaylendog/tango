@@ -1,3 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["./tango", "./tango-cli", "./tango-config", "tango-config", "tango-control"]
+members = [
+    "./tango",
+    "./tango-cli",
+    "./tango-config",
+    "tango-config",
+    "tango-control",
+]

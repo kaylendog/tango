@@ -1,66 +1,127 @@
-use std::os::unix::net::UnixListener;
+use std::{io, process};
 
-use anyhow::{Context, Result};
 use clap::Parser;
+use daemonize::Daemonize;
+use tracing::error;
 
 #[derive(Parser)]
 struct Args {
+    #[clap(flatten)]
+    global_opts: GlobalOpts,
+
     #[clap(subcommand)]
     subcommand: Option<Subcommand>,
 }
 
 #[derive(Parser)]
+struct GlobalOpts {}
+
+#[derive(Parser)]
 enum Subcommand {
-    Start,
+    Start(StartOpts),
     Stop,
     Restart,
     Config,
     Status,
 }
 
-fn main() -> Result<()> {
+#[derive(Parser)]
+struct StartOpts {
+    #[clap(short, long)]
+    #[clap(default_value = "/tmp/tango.sock")]
+    mode: String,
+}
+
+#[tokio::main]
+async fn main() {
+    // initialize tracing
+    tracing_subscriber::fmt::init();
+
     // parse commands
-    let Args { subcommand } = Args::parse();
+    let Args { subcommand, .. } = Args::parse();
     let subcommand = match subcommand {
         Some(x) => x,
         None => Subcommand::Status,
     };
 
-    // setup control socket
-    let control_socket = "/tmp/tango.sock";
-    let _ = std::fs::remove_file(control_socket);
-    let listener = UnixListener::bind(control_socket).context("failed to bind control socket")?;
-
     match subcommand {
-        Subcommand::Start => start(),
-        Subcommand::Stop => stop(),
-        Subcommand::Restart => restart(),
-        Subcommand::Config => config(),
-        Subcommand::Status => status(),
+        Subcommand::Start(opts) => start(opts).await,
+        Subcommand::Stop => stop().await,
+        Subcommand::Restart => restart().await,
+        Subcommand::Config => config().await,
+        Subcommand::Status => status().await,
     }
 }
 
-fn start() -> Result<()> {
+/// Connect to the control server.
+async fn connect() -> tango_control::ControlClient {
+    match tango_control::connect_unix().await {
+        Ok(client) => client,
+        Err(e) => {
+            match e.downcast::<io::Error>() {
+                Ok(e) => match e.kind() {
+                    io::ErrorKind::ConnectionRefused | io::ErrorKind::NotFound => {
+                        error!("Failed to connect to Tango (connection refused). Is the server running?");
+                    }
+                    _ => {
+                        error!("Failed to connect to Tango (I/O error): {:?}", e);
+                    }
+                },
+                Err(e) => {
+                    error!("Failed to connect to Tango (unknown error): {:?}", e);
+                }
+            }
+            process::exit(1);
+        }
+    }
+}
+
+/// Start the server.
+async fn start(opts: StartOpts) {
+    let stdout = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open("/tmp/tango.log")
+        .unwrap();
+    match Daemonize::new().stdout(stdout).start() {
+        Ok(_) => {
+            println!("Server started.");
+        }
+        Err(_) => todo!(),
+    }
+}
+
+async fn stop() {
+    // connect to the control server
+    let client = connect().await;
+
     // start the server
-    Ok(())
+    match client.stop(tango_control::context()).await {
+        Ok(_) => {
+            println!("Server started.");
+        }
+        Err(_) => {
+            println!("Failed to start server.");
+        }
+    }
 }
 
-fn stop() -> Result<()> {
-    // stop the server
-    Ok(())
-}
+async fn restart() {}
 
-fn restart() -> Result<()> {
-    // restart the server
-    Ok(())
-}
+async fn config() {}
 
-fn config() -> Result<()> {
-    // open the config file
-    Ok(())
-}
+async fn status() {
+    // connect to the control server
+    let client = connect().await;
 
-fn status() -> Result<()> {
-    // get the status of the server
-    Ok(())
+    // get the server status
+    match client.status(tango_control::context()).await {
+        Ok(_) => {
+            println!("Server is running.");
+        }
+        Err(_) => {
+            println!("Server is not running.");
+        }
+    }
 }
