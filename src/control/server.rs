@@ -9,7 +9,7 @@ use tarpc::{
     server::{self, Channel},
 };
 
-use crate::{Control, IPV4_SOCKET, IPV6_SOCKET, UNIX_SOCKET};
+use super::{Control, IPV4_SOCKET, IPV6_SOCKET, UNIX_SOCKET};
 
 #[derive(Clone)]
 pub struct ControlServer;

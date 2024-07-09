@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use anyhow::Result;
 use tarpc::{client, tokio_serde::formats::Bincode};
 
-use crate::{ControlClient, IPV4_SOCKET, IPV6_SOCKET, UNIX_SOCKET};
+use super::{ControlClient, IPV4_SOCKET, IPV6_SOCKET, UNIX_SOCKET};
 
 /// Connect to the Unix domain socket.
 pub async fn connect_unix() -> Result<ControlClient> {

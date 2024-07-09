@@ -4,11 +4,13 @@ use clap::Parser;
 use daemonize::Daemonize;
 use tracing::error;
 
+use crate::control::{client::connect_unix, context, ControlClient};
+
+/// Tango is a light-weight web server and reverse proxy, inspired by NGINX.
 #[derive(Parser)]
 struct Args {
     #[clap(flatten)]
     global_opts: GlobalOpts,
-
     #[clap(subcommand)]
     subcommand: Option<Subcommand>,
 }
@@ -18,10 +20,15 @@ struct GlobalOpts {}
 
 #[derive(Parser)]
 enum Subcommand {
+    /// Start the server.
     Start(StartOpts),
+    /// Stop the server.
     Stop,
+    /// Restart the server.
     Restart,
+    /// Configure the server.
     Config,
+    /// Get the server status.
     Status,
 }
 
@@ -32,11 +39,7 @@ struct StartOpts {
     mode: String,
 }
 
-#[tokio::main]
-async fn main() {
-    // initialize tracing
-    tracing_subscriber::fmt::init();
-
+pub async fn execute() {
     // parse commands
     let Args { subcommand, .. } = Args::parse();
     let subcommand = match subcommand {
@@ -54,8 +57,8 @@ async fn main() {
 }
 
 /// Connect to the control server.
-async fn connect() -> tango_control::ControlClient {
-    match tango_control::connect_unix().await {
+async fn connect() -> ControlClient {
+    match connect_unix().await {
         Ok(client) => client,
         Err(e) => {
             match e.downcast::<io::Error>() {
@@ -97,7 +100,7 @@ async fn stop() {
     let client = connect().await;
 
     // start the server
-    match client.stop(tango_control::context()).await {
+    match client.stop(context()).await {
         Ok(_) => {
             println!("Server started.");
         }
@@ -116,7 +119,7 @@ async fn status() {
     let client = connect().await;
 
     // get the server status
-    match client.status(tango_control::context()).await {
+    match client.status(context()).await {
         Ok(_) => {
             println!("Server is running.");
         }

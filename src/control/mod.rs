@@ -1,12 +1,5 @@
-#[cfg(feature = "client")]
-mod client;
-#[cfg(feature = "client")]
-pub use client::*;
-
-#[cfg(feature = "server")]
-mod server;
-#[cfg(feature = "server")]
-pub use server::*;
+pub mod client;
+pub mod server;
 
 #[tarpc::service]
 pub trait Control {
