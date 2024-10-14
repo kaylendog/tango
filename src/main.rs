@@ -46,7 +46,10 @@ fn main() {
         .init();
 
     match command.unwrap_or_default() {
-        Subcommand::Start(start_opts) => server::start(),
+        Subcommand::Start(opts) => {
+            server::start().expect("failed to start server");
+            println!("Server started.");
+        }
         Subcommand::Info => todo!(),
-    }
+    };
 }
